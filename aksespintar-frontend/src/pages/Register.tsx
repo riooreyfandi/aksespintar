@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { ApiError } from "../api";
 
 export function Register() {
-  const { register } = useAuth();
+  const { register, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: string } | null)?.from ?? "/";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -20,7 +22,7 @@ export function Register() {
 
     try {
       await register(name, email, password);
-      navigate("/", { replace: true });
+      navigate(from, { replace: true });
     } catch (err) {
       const details = err instanceof ApiError ? err.details : undefined;
       setError(
@@ -30,6 +32,10 @@ export function Register() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (user) {
+    return <Navigate to={from} replace />;
   }
 
   return (
@@ -82,7 +88,10 @@ export function Register() {
       </form>
 
       <p className="auth-switch">
-        Sudah punya akun? <Link to="/masuk">Masuk</Link>
+        Sudah punya akun?{" "}
+        <Link to="/masuk" state={{ from }}>
+          Masuk
+        </Link>
       </p>
     </div>
   );

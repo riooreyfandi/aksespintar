@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Navigate, useLocation } from "react-router-dom";
 import { api, ApiError } from "./api";
 import type { User } from "./types";
 
@@ -83,4 +84,27 @@ export function useAuth(): AuthContextValue {
     throw new Error("useAuth harus dipakai di dalam AuthProvider.");
   }
   return ctx;
+}
+
+// Materi hanya boleh dibuka setelah pengguna masuk. Pengunjung yang belum
+// masuk diarahkan ke halaman masuk, lalu dikembalikan ke halaman tujuannya.
+export function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <p className="state">Memuat...</p>;
+  }
+
+  if (!user) {
+    return (
+      <Navigate
+        to="/masuk"
+        replace
+        state={{ from: `${location.pathname}${location.search}` }}
+      />
+    );
+  }
+
+  return <>{children}</>;
 }

@@ -3,8 +3,12 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { AppError, asyncHandler } from "../../lib/errors";
 import { prisma } from "../../lib/prisma";
+import { requireAuth } from "../../middleware/auth";
 
 const router = Router();
+
+// Materi hanya untuk pengguna yang sudah masuk (PRD: konten di balik login).
+router.use(requireAuth);
 
 const listQuery = z.object({
   q: z.string().trim().max(100).optional(),

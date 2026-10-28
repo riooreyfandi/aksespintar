@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { ApiError } from "../api";
 
 export function Login() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/";
@@ -30,10 +30,14 @@ export function Login() {
     }
   }
 
+  if (user) {
+    return <Navigate to={from} replace />;
+  }
+
   return (
     <div className="auth-card">
       <h1>Masuk</h1>
-      <p className="auth-subtitle">Lanjutkan belajarmu di AksesPintar.</p>
+      <p className="auth-subtitle">Materi hanya bisa dibuka setelah kamu masuk. Belum punya akun? Daftar dulu, gratis.</p>
 
       <form onSubmit={handleSubmit} className="form">
         <label>
@@ -66,7 +70,10 @@ export function Login() {
       </form>
 
       <p className="auth-switch">
-        Belum punya akun? <Link to="/daftar">Daftar sekarang</Link>
+        Belum punya akun?{" "}
+        <Link to="/daftar" state={{ from }}>
+          Daftar sekarang
+        </Link>
       </p>
     </div>
   );

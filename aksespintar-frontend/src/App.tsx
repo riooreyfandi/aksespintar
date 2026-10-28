@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import { RequireAuth } from "./auth";
 import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home";
 import { MaterialDetail } from "./pages/MaterialDetail";
@@ -11,8 +12,22 @@ export function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<Home />} />
-        <Route path="materi/:slug" element={<MaterialDetail />} />
+        <Route
+          index
+          element={
+            <RequireAuth>
+              <Home />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="materi/:slug"
+          element={
+            <RequireAuth>
+              <MaterialDetail />
+            </RequireAuth>
+          }
+        />
         <Route path="masuk" element={<Login />} />
         <Route path="daftar" element={<Register />} />
         <Route path="admin" element={<Admin />} />
