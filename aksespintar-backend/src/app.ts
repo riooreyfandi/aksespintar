@@ -11,6 +11,7 @@ import { AppError } from "./lib/errors";
 import authRoutes from "./modules/auth/auth.routes";
 import categoryRoutes from "./modules/categories/categories.routes";
 import materialsRoutes from "./modules/materials/materials.routes";
+import adminRoutes from "./modules/admin/admin.routes";
 
 export const app = express();
 
@@ -57,6 +58,7 @@ app.get("/api/v1/health", async (_req, res) => {
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/materials", materialsRoutes);
+app.use("/api/v1/admin", adminRoutes);
 
 // Sajikan hasil build frontend bila tersedia, supaya website dan API satu alamat.
 const frontendDist = [process.env.FRONTEND_DIST, path.resolve(__dirname, "../../aksespintar-frontend/dist")]

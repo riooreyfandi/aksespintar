@@ -4,6 +4,7 @@ import { Home } from "./pages/Home";
 import { MaterialDetail } from "./pages/MaterialDetail";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
+import { Admin } from "./pages/Admin";
 import { NotFound } from "./pages/NotFound";
 
 export function App() {
@@ -14,6 +15,7 @@ export function App() {
         <Route path="materi/:slug" element={<MaterialDetail />} />
         <Route path="masuk" element={<Login />} />
         <Route path="daftar" element={<Register />} />
+        <Route path="admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

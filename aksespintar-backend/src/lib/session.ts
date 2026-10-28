@@ -18,15 +18,37 @@ const cookieOptions = {
   path: "/",
 };
 
-export async function createSession(userId: string, res: Response) {
+type SessionMeta = {
+  ipAddress?: string | null;
+  userAgent?: string | null;
+};
+
+export async function createSession(userId: string, res: Response, meta: SessionMeta = {}) {
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + SESSION_MS);
 
   await prisma.session.create({
-    data: { userId, tokenHash: hashToken(token), expiresAt },
+    data: {
+      userId,
+      tokenHash: hashToken(token),
+      expiresAt,
+      ipAddress: meta.ipAddress ?? null,
+      userAgent: meta.userAgent ?? null,
+    },
   });
 
   res.cookie(SESSION_COOKIE, token, { ...cookieOptions, expires: expiresAt });
+}
+
+// Catat aktivitas terakhir. Dipanggil tanpa await supaya tidak memperlambat respons,
+// dan dibatasi agar tidak menulis ke database pada setiap request.
+export function touchSession(sessionId: string, lastSeenAt: Date) {
+  if (Date.now() - lastSeenAt.getTime() < 60_000) {
+    return;
+  }
+  void prisma.session
+    .update({ where: { id: sessionId }, data: { lastSeenAt: new Date() } })
+    .catch(() => undefined);
 }
 
 export function clearSessionCookie(res: Response) {

@@ -4,6 +4,8 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { AppError, asyncHandler } from "../../lib/errors";
 import { prisma } from "../../lib/prisma";
+import { recordAudit } from "../../lib/audit";
+import { getClientIp, getClientUserAgent } from "../../lib/request-meta";
 import { requireAuth } from "../../middleware/auth";
 import { clearSessionCookie, createSession, hashToken, SESSION_COOKIE } from "../../lib/session";
 
@@ -44,6 +46,18 @@ router.post(
         data: { name: data.name, email: data.email, passwordHash },
         select: { id: true, name: true, email: true, role: true },
       });
+
+      await recordAudit({
+        actorId: user.id,
+        action: "auth.register",
+        entityType: "user",
+        entityId: user.id,
+        metadata: {
+          ip: getClientIp(req),
+          userAgent: getClientUserAgent(req),
+        },
+      });
+
       res.status(201).json({ user });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -68,7 +82,27 @@ router.post(
       throw new AppError(401, "INVALID_CREDENTIALS", "Email atau kata sandi salah.");
     }
 
-    await createSession(user.id, res);
+    const ip = getClientIp(req);
+    const userAgent = getClientUserAgent(req);
+
+    await createSession(user.id, res, { ipAddress: ip, userAgent });
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { loginCount: { increment: 1 }, lastLoginAt: new Date() },
+      select: { loginCount: true },
+    });
+
+    await recordAudit({
+      actorId: user.id,
+      action: "auth.login",
+      entityType: "session",
+      metadata: {
+        ip,
+        userAgent,
+        loginKe: updated.loginCount,
+      },
+    });
+
     res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   }),
 );
@@ -78,6 +112,24 @@ router.post(
   asyncHandler(async (req, res) => {
     const token = req.cookies?.[SESSION_COOKIE];
     if (typeof token === "string" && token) {
+      const session = await prisma.session.findUnique({
+        where: { tokenHash: hashToken(token) },
+        select: { userId: true, createdAt: true },
+      });
+
+      if (session) {
+        await recordAudit({
+          actorId: session.userId,
+          action: "auth.logout",
+          entityType: "session",
+          metadata: {
+            ip: getClientIp(req),
+            userAgent: getClientUserAgent(req),
+            durasiMenit: Math.max(0, Math.round((Date.now() - session.createdAt.getTime()) / 60_000)),
+          },
+        });
+      }
+
       await prisma.session.deleteMany({ where: { tokenHash: hashToken(token) } });
     }
     clearSessionCookie(res);

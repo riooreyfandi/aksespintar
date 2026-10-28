@@ -45,6 +45,7 @@ export function Layout() {
             </NavLink>
             {loading ? null : user ? (
               <>
+                {user.role === "admin" ? <NavLink to="/admin">Admin</NavLink> : null}
                 <span className="nav-user">Halo, {user.name.split(" ")[0]}</span>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => void logout()}>
                   Keluar
