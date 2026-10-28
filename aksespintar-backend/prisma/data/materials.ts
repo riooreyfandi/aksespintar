@@ -1,3 +1,5 @@
+import { advancedMaterials, toolMaterials } from "./materials-extra";
+
 export type SeedDifficulty = "beginner" | "intermediate" | "advanced";
 
 export type CategorySeed = {
@@ -31,6 +33,7 @@ export const categories: CategorySeed[] = [
   { name: "Matematika Diskrit", slug: "matematika-diskrit", description: "Logika, himpunan, kombinatorika, relasi, dan graf." },
   { name: "Aljabar Linier", slug: "aljabar-linier", description: "Vektor, matriks, sistem persamaan linier, dan nilai eigen." },
   { name: "Fisika Dasar", slug: "fisika-dasar", description: "Gerak, gaya, energi, momentum, fluida, dan listrik dasar." },
+  { name: "Alat Pengembangan", slug: "alat-dev", description: "Editor kode, format data, dan pengendali versi yang dipakai sehari-hari." },
 ];
 
 // Kategori lama yang tidak lagi dipakai dan tidak punya isi akan dibersihkan saat seeding.
@@ -762,4 +765,6 @@ Arus: I = V / R = 10 / 5 = 2 A.`,
       "Latihan: sebuah sepeda bergerak 4 m/s lalu dipercepat 1 m/s² selama 6 sekon. Hitung kecepatan akhir dan jarak tempuhnya, lalu hitung energi kinetiknya jika massa sepeda dan pengendara 60 kg.",
     ),
   },
+  ...advancedMaterials,
+  ...toolMaterials,
 ];
