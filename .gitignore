@@ -1,0 +1,12 @@
+**/node_modules/
+**/dist/
+**/.env
+**/*.log
+**/.git-backup/
+.DS_Store
+
+# Hasil build Netlify Function (dibuat saat build)
+aksespintar-backend/netlify/functions/lib/
+aksespintar-backend/netlify/functions/node_modules/
+aksespintar-backend/public/
+.netlify/

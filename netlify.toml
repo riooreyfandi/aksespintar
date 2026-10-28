@@ -1,0 +1,31 @@
+﻿# Deploy: frontend statis (React/Vite) + backend Express sebagai Netlify Function.
+# Publish memakai hasil build frontend; API dilayani function di aksespintar-backend.
+[build]
+  command = "cd aksespintar-backend && npm ci --include=dev && npx prisma generate && npm run build:netlify && cd ../aksespintar-frontend && npm ci --include=dev && npm run build"
+  publish = "aksespintar-frontend/dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NPM_FLAGS = "--no-audit --no-fund"
+
+# Function sudah dibundel sendiri oleh scripts/build-netlify-function.mjs
+# (esbuild + file Prisma/argon2 seperlunya), jadi tidak perlu tracing node_modules.
+[functions]
+  directory = "aksespintar-backend/netlify/functions"
+  node_bundler = "none"
+  included_files = [
+    "aksespintar-backend/netlify/functions/node_modules/**",
+    "aksespintar-backend/netlify/functions/lib/**",
+  ]
+
+# API: /api/* diteruskan ke function. Prefix path dinormalkan di netlify/functions/api.js.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/api/:splat"
+  status = 200
+
+# SPA fallback untuk React Router.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

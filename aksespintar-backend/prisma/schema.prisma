@@ -1,0 +1,261 @@
+generator client {
+  provider      = "prisma-client-js"
+  // "native" untuk lokal/Docker, "rhel-openssl-3.0.x" untuk Netlify Functions (Amazon Linux 2023)
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  student
+  contributor
+  admin
+}
+
+enum Difficulty {
+  beginner
+  intermediate
+  advanced
+}
+
+enum ContentStatus {
+  draft
+  review
+  published
+  archived
+}
+
+enum OpportunityStatus {
+  active
+  expired
+  archived
+}
+
+model User {
+  id                  String    @id @default(uuid()) @db.Uuid
+  name                String    @db.VarChar(100)
+  email               String    @unique @db.VarChar(255)
+  passwordHash        String    @map("password_hash")
+  role                Role      @default(student)
+  deletionRequestedAt DateTime? @map("deletion_requested_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  materials   LearningMaterial[]
+  attempts    QuizAttempt[]
+  progress    MaterialProgress[]
+  bookmarks   Bookmark[]
+  sessions    Session[]
+  resetTokens PasswordResetToken[]
+  auditLogs   AuditLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model Category {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String  @db.VarChar(100)
+  slug        String  @unique @db.VarChar(120)
+  description String?
+
+  materials LearningMaterial[]
+  quizzes   Quiz[]
+
+  @@map("categories")
+}
+
+model LearningMaterial {
+  id               String        @id @default(uuid()) @db.Uuid
+  categoryId       String        @map("category_id") @db.Uuid
+  authorId         String        @map("author_id") @db.Uuid
+  title            String        @db.VarChar(200)
+  slug             String        @unique @db.VarChar(220)
+  summary          String
+  content          String
+  difficulty       Difficulty
+  estimatedMinutes Int           @map("estimated_minutes")
+  status           ContentStatus @default(draft)
+  publishedAt      DateTime?     @map("published_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  category  Category           @relation(fields: [categoryId], references: [id])
+  author    User               @relation(fields: [authorId], references: [id])
+  progress  MaterialProgress[]
+  bookmarks Bookmark[]
+
+  @@index([status, categoryId])
+  @@map("learning_materials")
+}
+
+model Quiz {
+  id           String        @id @default(uuid()) @db.Uuid
+  categoryId   String        @map("category_id") @db.Uuid
+  title        String        @db.VarChar(200)
+  description  String?
+  passingScore Int?          @map("passing_score")
+  status       ContentStatus @default(draft)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  category  Category      @relation(fields: [categoryId], references: [id])
+  questions Question[]
+  attempts  QuizAttempt[]
+
+  @@index([status, categoryId])
+  @@map("quizzes")
+}
+
+model Question {
+  id           String  @id @default(uuid()) @db.Uuid
+  quizId       String  @map("quiz_id") @db.Uuid
+  questionText String  @map("question_text")
+  explanation  String?
+  orderIndex   Int     @map("order_index")
+
+  quiz           Quiz                @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options        AnswerOption[]
+  attemptAnswers QuizAttemptAnswer[]
+
+  @@unique([quizId, orderIndex])
+  @@map("questions")
+}
+
+model AnswerOption {
+  id         String  @id @default(uuid()) @db.Uuid
+  questionId String  @map("question_id") @db.Uuid
+  optionText String  @map("option_text")
+  isCorrect  Boolean @default(false) @map("is_correct")
+
+  question       Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  attemptAnswers QuizAttemptAnswer[]
+
+  @@index([questionId])
+  @@map("answer_options")
+}
+
+model QuizAttempt {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  quizId         String    @map("quiz_id") @db.Uuid
+  score          Decimal?  @db.Decimal(5, 2)
+  totalQuestions Int       @map("total_questions")
+  correctAnswers Int?      @map("correct_answers")
+  startedAt      DateTime  @default(now()) @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+
+  user    User                @relation(fields: [userId], references: [id])
+  quiz    Quiz                @relation(fields: [quizId], references: [id])
+  answers QuizAttemptAnswer[]
+
+  @@index([userId, quizId])
+  @@map("quiz_attempts")
+}
+
+model QuizAttemptAnswer {
+  id               String  @id @default(uuid()) @db.Uuid
+  attemptId        String  @map("attempt_id") @db.Uuid
+  questionId       String  @map("question_id") @db.Uuid
+  selectedOptionId String? @map("selected_option_id") @db.Uuid
+  isCorrect        Boolean @map("is_correct")
+
+  attempt        QuizAttempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question       Question      @relation(fields: [questionId], references: [id])
+  selectedOption AnswerOption? @relation(fields: [selectedOptionId], references: [id])
+
+  @@unique([attemptId, questionId])
+  @@map("quiz_attempt_answers")
+}
+
+model MaterialProgress {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  materialId      String    @map("material_id") @db.Uuid
+  progressPercent Int       @default(0) @map("progress_percent")
+  completedAt     DateTime? @map("completed_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  material LearningMaterial @relation(fields: [materialId], references: [id])
+
+  @@unique([userId, materialId])
+  @@map("material_progress")
+}
+
+model EducationOpportunity {
+  id          String            @id @default(uuid()) @db.Uuid
+  title       String            @db.VarChar(200)
+  provider    String            @db.VarChar(200)
+  description String
+  eligibility String?
+  deadline    DateTime?         @db.Date
+  officialUrl String            @map("official_url")
+  verifiedAt  DateTime          @map("verified_at")
+  status      OpportunityStatus @default(active)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  bookmarks Bookmark[]
+
+  @@index([status, deadline])
+  @@map("education_opportunities")
+}
+
+model Bookmark {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  materialId    String?  @map("material_id") @db.Uuid
+  opportunityId String?  @map("opportunity_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  material    LearningMaterial?     @relation(fields: [materialId], references: [id])
+  opportunity EducationOpportunity? @relation(fields: [opportunityId], references: [id])
+
+  @@unique([userId, materialId])
+  @@unique([userId, opportunityId])
+  @@map("bookmarks")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String   @map("actor_id") @db.Uuid
+  action     String   @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(100)
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([createdAt])
+  @@map("audit_logs")
+}
