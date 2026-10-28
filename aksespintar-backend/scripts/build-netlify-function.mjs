@@ -1,4 +1,4 @@
-﻿// Menyiapkan Netlify Function yang mandiri:
+// Menyiapkan Netlify Function yang mandiri:
 // - dist/app.js dibundel esbuild menjadi satu file
 // - hanya file Prisma/argon2 yang benar-benar dibutuhkan yang disalin
 // Hasilnya dipakai bersama "node_bundler = none" di netlify.toml, sehingga
