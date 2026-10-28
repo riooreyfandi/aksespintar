@@ -74,5 +74,8 @@ await copy(path.join(argon2Dir, "prebuilds", "linux-x64"), path.join(modulesDir,
 await copy(path.join(root, "node_modules", "node-gyp-build"), path.join(modulesDir, "node-gyp-build"));
 await copy(path.join(root, "node_modules", "@phc", "format"), path.join(modulesDir, "@phc", "format"));
 
+// serverless-http dipakai langsung oleh netlify/functions/api.js (di luar bundel esbuild)
+await copy(path.join(root, "node_modules", "serverless-http"), path.join(modulesDir, "serverless-http"));
+
 console.log("Netlify Function siap di", outDir);
 

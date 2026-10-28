@@ -1,7 +1,7 @@
 # Deploy: frontend statis (React/Vite) + backend Express sebagai Netlify Function.
 # Publish memakai hasil build frontend; API dilayani function di aksespintar-backend.
 [build]
-  command = "cd aksespintar-backend && npm ci --include=dev && npx prisma generate && npm run build:netlify && cd ../aksespintar-frontend && npm ci --include=dev && npm run build"
+  command = "cd aksespintar-backend && npm ci --include=dev --legacy-peer-deps && npx prisma generate && npm run build:netlify && cd ../aksespintar-frontend && npm ci --include=dev --legacy-peer-deps && npm run build"
   publish = "aksespintar-frontend/dist"
 
 [build.environment]
