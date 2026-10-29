@@ -39,6 +39,70 @@ export type Paged<T> = {
   totalPages: number;
 };
 
+export type QuizOption = {
+  id: string;
+  optionText: string;
+};
+
+export type QuizQuestion = {
+  id: string;
+  questionText: string;
+  orderIndex: number;
+  options: QuizOption[];
+};
+
+export type QuizBestAttempt = {
+  id: string;
+  score: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  completedAt: string;
+};
+
+export type MaterialQuiz = {
+  id: string;
+  title: string;
+  description: string | null;
+  passingScore: number | null;
+  questions: QuizQuestion[];
+  bestAttempt: QuizBestAttempt | null;
+};
+
+export type QuizResult = {
+  attempt: {
+    id: string;
+    score: number;
+    totalQuestions: number;
+    correctAnswers: number;
+    wrongAnswers: number;
+    completedAt: string;
+  };
+  review: {
+    questionId: string;
+    selectedOptionId: string | null;
+    correctOptionId: string | null;
+    isCorrect: boolean;
+    explanation: string | null;
+  }[];
+};
+
+export type LeaderboardEntry = {
+  rank: number;
+  id: string;
+  name: string;
+  totalScore: number;
+  correctAnswers: number;
+  wrongAnswers: number;
+  quizzesTaken: number;
+};
+
+export type ChatMessage = {
+  id: string;
+  body: string;
+  createdAt: string;
+  user: { id: string; name: string; role: string };
+};
+
 export type AdminOverview = {
   totalUsers: number;
   activeSessions: number;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, isAbortError } from "../api";
+import { QuizSection } from "../components/QuizSection";
 import { DIFFICULTY_LABELS, formatDate } from "../labels";
 import type { Material } from "../types";
 
@@ -126,6 +127,8 @@ export function MaterialDetail() {
           ),
         )}
       </div>
+
+      <QuizSection slug={material.slug} />
     </article>
   );
 }

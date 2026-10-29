@@ -46,26 +46,27 @@ model User {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
-  materials   LearningMaterial[]
-  attempts    QuizAttempt[]
-  progress    MaterialProgress[]
-  bookmarks   Bookmark[]
-  sessions    Session[]
-  resetTokens PasswordResetToken[]
-  auditLogs   AuditLog[]
+  materials    LearningMaterial[]
+  attempts     QuizAttempt[]
+  progress     MaterialProgress[]
+  bookmarks    Bookmark[]
+  sessions     Session[]
+  resetTokens  PasswordResetToken[]
+  auditLogs    AuditLog[]
+  chatMessages ChatMessage[]
 
   @@map("users")
 }
 
 model Session {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  tokenHash String   @unique @map("token_hash")
-  ipAddress String?  @map("ip_address") @db.VarChar(64)
-  userAgent String?  @map("user_agent") @db.VarChar(255)
-  expiresAt DateTime @map("expires_at")
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  tokenHash  String   @unique @map("token_hash")
+  ipAddress  String?  @map("ip_address") @db.VarChar(64)
+  userAgent  String?  @map("user_agent") @db.VarChar(255)
+  expiresAt  DateTime @map("expires_at")
   lastSeenAt DateTime @default(now()) @map("last_seen_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -116,6 +117,7 @@ model LearningMaterial {
   author    User               @relation(fields: [authorId], references: [id])
   progress  MaterialProgress[]
   bookmarks Bookmark[]
+  quizzes   Quiz[]
 
   @@index([status, categoryId])
   @@map("learning_materials")
@@ -124,6 +126,7 @@ model LearningMaterial {
 model Quiz {
   id           String        @id @default(uuid()) @db.Uuid
   categoryId   String        @map("category_id") @db.Uuid
+  materialId   String?       @map("material_id") @db.Uuid
   title        String        @db.VarChar(200)
   description  String?
   passingScore Int?          @map("passing_score")
@@ -131,11 +134,13 @@ model Quiz {
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
-  category  Category      @relation(fields: [categoryId], references: [id])
+  category  Category          @relation(fields: [categoryId], references: [id])
+  material  LearningMaterial? @relation(fields: [materialId], references: [id], onDelete: SetNull)
   questions Question[]
   attempts  QuizAttempt[]
 
   @@index([status, categoryId])
+  @@index([materialId])
   @@map("quizzes")
 }
 
@@ -158,6 +163,7 @@ model AnswerOption {
   id         String  @id @default(uuid()) @db.Uuid
   questionId String  @map("question_id") @db.Uuid
   optionText String  @map("option_text")
+  orderIndex Int     @default(0) @map("order_index")
   isCorrect  Boolean @default(false) @map("is_correct")
 
   question       Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -263,4 +269,16 @@ model AuditLog {
 
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  body      String   @db.VarChar(1000)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@map("chat_messages")
 }

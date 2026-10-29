@@ -45,6 +45,8 @@ export function Layout() {
                 <NavLink to="/" end>
                   Materi
                 </NavLink>
+                <NavLink to="/peringkat">Peringkat</NavLink>
+                <NavLink to="/diskusi">Diskusi</NavLink>
                 {user.role === "admin" ? <NavLink to="/admin">Admin</NavLink> : null}
                 <span className="nav-user">Halo, {user.name.split(" ")[0]}</span>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => void logout()}>

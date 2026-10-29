@@ -6,6 +6,8 @@ import { MaterialDetail } from "./pages/MaterialDetail";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 import { Admin } from "./pages/Admin";
+import { Leaderboard } from "./pages/Leaderboard";
+import { Chat } from "./pages/Chat";
 import { NotFound } from "./pages/NotFound";
 
 export function App() {
@@ -25,6 +27,22 @@ export function App() {
           element={
             <RequireAuth>
               <MaterialDetail />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="peringkat"
+          element={
+            <RequireAuth>
+              <Leaderboard />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="diskusi"
+          element={
+            <RequireAuth>
+              <Chat />
             </RequireAuth>
           }
         />

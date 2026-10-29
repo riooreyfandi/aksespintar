@@ -2,6 +2,7 @@ import "dotenv/config";
 import argon2 from "argon2";
 import { PrismaClient } from "@prisma/client";
 import { categories, legacyCategorySlugs, materials } from "./data/materials";
+import { quizzes } from "./data/quizzes";
 
 const prisma = new PrismaClient();
 
@@ -92,12 +93,17 @@ async function main() {
     });
   }
 
-  // 5. Satu latihan contoh (3 soal)
+  // 5. Satu latihan contoh (3 soal), ditempel ke materi pengenalan HTML
+  const htmlMaterial = await prisma.learningMaterial.findUnique({
+    where: { slug: "pengenalan-html" },
+    select: { id: true },
+  });
   const adaQuiz = await prisma.quiz.findFirst({ where: { title: "Latihan Dasar HTML" } });
   if (!adaQuiz) {
     await prisma.quiz.create({
       data: {
         categoryId: htmlCssId,
+        materialId: htmlMaterial?.id ?? null,
         title: "Latihan Dasar HTML",
         description: "Tiga soal untuk menguji pemahaman dasar HTML.",
         passingScore: 70,
@@ -147,9 +153,55 @@ async function main() {
         },
       },
     });
+  } else if (adaQuiz.materialId !== htmlMaterial?.id && htmlMaterial) {
+    // Kuis lama yang belum punya materi dihubungkan ke materi pengenalan HTML.
+    await prisma.quiz.update({ where: { id: adaQuiz.id }, data: { materialId: htmlMaterial.id } });
   }
 
-  // 6. Satu info beasiswa contoh (data uji, bukan beasiswa sungguhan)
+  // 6. Kuis pendek untuk setiap materi
+  for (const quizSeed of quizzes) {
+    const material = await prisma.learningMaterial.findUnique({
+      where: { slug: quizSeed.materialSlug },
+      select: { id: true, categoryId: true },
+    });
+    if (!material) {
+      console.warn(`Materi "${quizSeed.materialSlug}" tidak ditemukan, kuis dilewati.`);
+      continue;
+    }
+
+    const existing = await prisma.quiz.findFirst({
+      where: { materialId: material.id },
+      select: { id: true },
+    });
+    if (existing) continue;
+
+    await prisma.quiz.create({
+      data: {
+        categoryId: material.categoryId,
+        materialId: material.id,
+        title: quizSeed.title,
+        description: quizSeed.description,
+        passingScore: quizSeed.passingScore,
+        status: "published",
+        questions: {
+          create: quizSeed.questions.map((question, questionIndex) => ({
+            orderIndex: questionIndex + 1,
+            questionText: question.questionText,
+            explanation: question.explanation,
+            options: {
+              create: question.options.map((optionText, optionIndex) => ({
+                optionText,
+                orderIndex: optionIndex,
+                isCorrect: optionIndex === question.correctIndex,
+              })),
+            },
+          })),
+        },
+      },
+    });
+  }
+
+  // 7. Satu info beasiswa contoh (data uji, bukan beasiswa sungguhan)
   const adaBeasiswa = await prisma.educationOpportunity.findFirst({
     where: { title: "Contoh Beasiswa (data uji)" },
   });
