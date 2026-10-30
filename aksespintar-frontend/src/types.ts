@@ -3,6 +3,13 @@ export type User = {
   name: string;
   email: string;
   role: string;
+  avatar: string | null;
+};
+
+export type Profile = User & {
+  createdAt: string;
+  loginCount: number;
+  lastLoginAt: string | null;
 };
 
 export type Category = {
@@ -90,6 +97,7 @@ export type LeaderboardEntry = {
   rank: number;
   id: string;
   name: string;
+  avatar: string | null;
   totalScore: number;
   correctAnswers: number;
   wrongAnswers: number;
@@ -100,7 +108,7 @@ export type ChatMessage = {
   id: string;
   body: string;
   createdAt: string;
-  user: { id: string; name: string; role: string };
+  user: { id: string; name: string; role: string; avatar: string | null };
 };
 
 export type AdminOverview = {

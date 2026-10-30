@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { api, isAbortError } from "../api";
 import { useAuth } from "../auth";
+import { Avatar } from "../components/Avatar";
 import type { ChatMessage } from "../types";
 
 const POLL_MS = 5000;
@@ -115,6 +116,7 @@ export function Chat() {
               return (
                 <article key={message.id} className={`chat-message${mine ? " chat-message-mine" : ""}`}>
                   <div className="chat-message-head">
+                    <Avatar user={message.user} size="xs" />
                     <span className="chat-author">
                       {message.user.name}
                       {message.user.role === "admin" ? <span className="chat-role">admin</span> : null}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, isAbortError } from "../api";
 import { useAuth } from "../auth";
+import { Avatar } from "../components/Avatar";
 import type { LeaderboardEntry } from "../types";
 
 type LeaderboardResponse = {
@@ -114,8 +115,11 @@ export function Leaderboard() {
                           </span>
                         </td>
                         <td className="cell-strong">
-                          {item.name}
-                          {isMe ? <span className="rank-you">kamu</span> : null}
+                          <span className="cell-user">
+                            <Avatar user={item} size="xs" />
+                            {item.name}
+                            {isMe ? <span className="rank-you">kamu</span> : null}
+                          </span>
                         </td>
                         <td className="cell-strong">{formatScore(item.totalScore)}</td>
                         <td>{item.quizzesTaken}</td>

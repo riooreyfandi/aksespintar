@@ -20,8 +20,8 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
 
     touchSession(session.id, session.lastSeenAt);
 
-    const { id, name, email, role } = session.user;
-    req.user = { id, name, email, role };
+    const { id, name, email, role, avatar } = session.user;
+    req.user = { id, name, email, role, avatar };
     next();
   } catch (err) {
     next(err);

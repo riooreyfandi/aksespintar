@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth";
 import { applyTheme, getInitialTheme, type Theme } from "../theme";
+import { Avatar } from "./Avatar";
 
 function SunIcon() {
   return (
@@ -48,7 +49,10 @@ export function Layout() {
                 <NavLink to="/peringkat">Peringkat</NavLink>
                 <NavLink to="/diskusi">Diskusi</NavLink>
                 {user.role === "admin" ? <NavLink to="/admin">Admin</NavLink> : null}
-                <span className="nav-user">Halo, {user.name.split(" ")[0]}</span>
+                <NavLink to="/profil" className="nav-profile">
+                  <Avatar user={user} size="sm" />
+                  <span className="nav-profile-name">Halo, {user.name.split(" ")[0]}</span>
+                </NavLink>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => void logout()}>
                   Keluar
                 </button>

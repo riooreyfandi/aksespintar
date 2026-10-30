@@ -13,6 +13,7 @@ import categoryRoutes from "./modules/categories/categories.routes";
 import materialsRoutes from "./modules/materials/materials.routes";
 import quizzesRoutes from "./modules/quizzes/quizzes.routes";
 import chatRoutes from "./modules/chat/chat.routes";
+import profileRoutes from "./modules/profile/profile.routes";
 import adminRoutes from "./modules/admin/admin.routes";
 
 export const app = express();
@@ -45,7 +46,7 @@ app.use((req, _res, next) => {
   }
 });
 
-app.use(express.json({ limit: "100kb" }));
+app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
 app.get("/api/v1/health", async (_req, res) => {
@@ -62,6 +63,7 @@ app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/materials", materialsRoutes);
 app.use("/api/v1/quizzes", quizzesRoutes);
 app.use("/api/v1/chat", chatRoutes);
+app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/admin", adminRoutes);
 
 // Sajikan hasil build frontend bila tersedia, supaya website dan API satu alamat.

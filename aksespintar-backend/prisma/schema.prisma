@@ -40,6 +40,7 @@ model User {
   email               String    @unique @db.VarChar(255)
   passwordHash        String    @map("password_hash")
   role                Role      @default(student)
+  avatar              String?   @db.Text
   deletionRequestedAt DateTime? @map("deletion_requested_at")
   loginCount          Int       @default(0) @map("login_count")
   lastLoginAt         DateTime? @map("last_login_at")

@@ -44,7 +44,7 @@ router.post(
     try {
       const user = await prisma.user.create({
         data: { name: data.name, email: data.email, passwordHash },
-        select: { id: true, name: true, email: true, role: true },
+        select: { id: true, name: true, email: true, role: true, avatar: true },
       });
 
       await recordAudit({
@@ -103,7 +103,9 @@ router.post(
       },
     });
 
-    res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    res.json({
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },
+    });
   }),
 );
 

@@ -26,7 +26,7 @@ const messageSelect = {
   id: true,
   body: true,
   createdAt: true,
-  user: { select: { id: true, name: true, role: true } },
+  user: { select: { id: true, name: true, role: true, avatar: true } },
 } as const;
 
 router.get(

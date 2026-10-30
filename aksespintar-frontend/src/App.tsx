@@ -8,6 +8,7 @@ import { Register } from "./pages/Register";
 import { Admin } from "./pages/Admin";
 import { Leaderboard } from "./pages/Leaderboard";
 import { Chat } from "./pages/Chat";
+import { Profile } from "./pages/Profile";
 import { NotFound } from "./pages/NotFound";
 
 export function App() {
@@ -43,6 +44,14 @@ export function App() {
           element={
             <RequireAuth>
               <Chat />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="profil"
+          element={
+            <RequireAuth>
+              <Profile />
             </RequireAuth>
           }
         />

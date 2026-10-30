@@ -32,6 +32,7 @@ const submitSchema = z.object({
 type LeaderboardRow = {
   id: string;
   name: string;
+  avatar: string | null;
   total_score: number;
   correct_answers: number;
   total_questions: number;
@@ -213,13 +214,14 @@ router.get(
       SELECT
         u.id,
         u.name,
+        u.avatar,
         COALESCE(SUM(best.score), 0)::float8 AS total_score,
         COALESCE(SUM(best.correct_answers), 0)::int AS correct_answers,
         COALESCE(SUM(best.total_questions), 0)::int AS total_questions,
         COUNT(best.quiz_id)::int AS quizzes_taken
       FROM best
       JOIN users u ON u.id = best.user_id
-      GROUP BY u.id, u.name
+      GROUP BY u.id, u.name, u.avatar
       ORDER BY total_score DESC, correct_answers DESC, u.name ASC
     `;
 
@@ -227,6 +229,7 @@ router.get(
       rank: index + 1,
       id: row.id,
       name: row.name,
+      avatar: row.avatar,
       totalScore: roundScore(Number(row.total_score)),
       correctAnswers: Number(row.correct_answers),
       wrongAnswers: Number(row.total_questions) - Number(row.correct_answers),
