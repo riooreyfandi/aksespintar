@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AppError, asyncHandler } from "../../lib/errors";
 import { prisma } from "../../lib/prisma";
 import { requireAuth } from "../../middleware/auth";
+import { rateLimit } from "../../lib/rate-limit";
 
 const router = Router();
 
@@ -40,6 +41,16 @@ type LeaderboardRow = {
 };
 
 const roundScore = (value: number) => Math.round(value * 100) / 100;
+
+// Membatasi percobaan agar kunci jawaban tidak bisa dipanen dengan mengirim
+// jawaban acak berulang-ulang, sekaligus mencegah spam perhitungan skor.
+const attemptLimit = rateLimit({
+  scope: "quiz.attempt",
+  limit: 8,
+  windowMs: 60 * 60 * 1000,
+  key: (req) => `${req.user?.id ?? "anonim"}:${req.params.id ?? "-"}`,
+  message: "Terlalu banyak percobaan kuis. Coba lagi dalam satu jam.",
+});
 
 // Kuis yang menempel pada sebuah materi (tampil di bawah isi materi).
 router.get(
@@ -114,6 +125,7 @@ router.get(
 // Kirim jawaban kuis. Skor dihitung di server agar tidak bisa dimanipulasi.
 router.post(
   "/:id/attempts",
+  attemptLimit,
   asyncHandler(async (req, res) => {
     const { id } = idParam.parse(req.params);
     const { answers } = submitSchema.parse(req.body);
@@ -127,7 +139,7 @@ router.post(
           select: {
             id: true,
             explanation: true,
-            options: { select: { id: true, isCorrect: true } },
+            options: { select: { id: true, optionText: true, isCorrect: true } },
           },
         },
       },
@@ -156,7 +168,9 @@ router.post(
       return {
         questionId: question.id,
         selectedOptionId,
-        correctOptionId: correctOption?.id ?? null,
+        // Teks jawaban benar dikirim untuk review, tetapi ID internal opsi
+        // tidak diekspos agar tidak bisa dipakai menyusun kunci jawaban.
+        correctOptionText: correctOption?.optionText ?? null,
         isCorrect: selected?.isCorrect ?? false,
         explanation: question.explanation,
       };

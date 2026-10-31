@@ -1667,3 +1667,20 @@ h3 {
   align-items: center;
   gap: 0.5rem;
 }
+
+.hp-field {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.profile-card-hint a {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.profile-card-hint a:hover {
+  text-decoration: underline;
+}

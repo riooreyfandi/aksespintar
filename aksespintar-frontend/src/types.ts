@@ -4,12 +4,11 @@ export type User = {
   email: string;
   role: string;
   avatar: string | null;
+  mustChangePassword?: boolean;
 };
 
 export type Profile = User & {
   createdAt: string;
-  loginCount: number;
-  lastLoginAt: string | null;
 };
 
 export type Category = {
@@ -87,7 +86,7 @@ export type QuizResult = {
   review: {
     questionId: string;
     selectedOptionId: string | null;
-    correctOptionId: string | null;
+    correctOptionText: string | null;
     isCorrect: boolean;
     explanation: string | null;
   }[];

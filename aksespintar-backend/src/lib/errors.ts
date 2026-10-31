@@ -5,6 +5,8 @@ export class AppError extends Error {
     public status: number,
     public code: string,
     message: string,
+    public details?: { field: string; message: string }[],
+    public retryAfter?: number,
   ) {
     super(message);
   }

@@ -5,11 +5,14 @@ import { prisma } from "../../lib/prisma";
 import { recordAudit } from "../../lib/audit";
 import { getClientIp, getClientUserAgent } from "../../lib/request-meta";
 import { requireAuth } from "../../middleware/auth";
+import { rateLimit } from "../../lib/rate-limit";
 
 const router = Router();
 
 const MAX_AVATAR_LENGTH = 600_000; // cukup untuk foto yang sudah dikompres di browser
 
+// Hanya data yang benar-benar dipakai halaman profil. Informasi internal
+// (jumlah login, waktu login terakhir, hash sandi, dsb.) tidak ikut dikirim.
 const profileSelect = {
   id: true,
   name: true,
@@ -45,12 +48,19 @@ const updateSchema = z
 // Profil hanya bisa dibuka dan diubah oleh pemilik akun yang sedang masuk.
 router.use(requireAuth);
 
+const updateLimit = rateLimit({
+  scope: "profile.update",
+  limit: 40,
+  windowMs: 60 * 60 * 1000,
+  key: (req) => req.user?.id ?? "anonim",
+});
+
 router.get(
   "/",
   asyncHandler(async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { ...profileSelect, loginCount: true, lastLoginAt: true },
+      select: profileSelect,
     });
     res.json({ user });
   }),
@@ -58,6 +68,7 @@ router.get(
 
 router.patch(
   "/",
+  updateLimit,
   asyncHandler(async (req, res) => {
     const data = updateSchema.parse(req.body);
 
@@ -67,7 +78,7 @@ router.patch(
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.avatar !== undefined ? { avatar: data.avatar } : {}),
       },
-      select: { ...profileSelect, loginCount: true, lastLoginAt: true },
+      select: profileSelect,
     });
 
     await recordAudit({

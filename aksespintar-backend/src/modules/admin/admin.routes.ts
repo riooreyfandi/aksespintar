@@ -1,14 +1,31 @@
 import { Router } from "express";
 import { z } from "zod";
-import { asyncHandler } from "../../lib/errors";
+import { AppError, asyncHandler } from "../../lib/errors";
 import { prisma } from "../../lib/prisma";
-import { requireAuth } from "../../middleware/auth";
-import { requireRole } from "../../middleware/roles";
+import { requireAuthHidden } from "../../middleware/auth";
+import { rateLimit } from "../../lib/rate-limit";
 
 const router = Router();
 
-// Semua endpoint di bawah ini hanya untuk admin.
-router.use(requireAuth, requireRole("admin"));
+// Semua endpoint di bawah ini hanya untuk admin. Pengunjung lain diberi 404
+// agar keberadaan panel admin tidak mudah dipetakan.
+const adminLimit = rateLimit({
+  scope: "admin",
+  limit: 120,
+  windowMs: 60 * 1000,
+  message: "Terlalu banyak permintaan ke panel admin. Coba lagi sebentar.",
+});
+
+router.use(
+  adminLimit,
+  requireAuthHidden,
+  (req, _res, next) => {
+    if (req.user?.role !== "admin") {
+      return next(new AppError(404, "NOT_FOUND", "Endpoint tidak ditemukan."));
+    }
+    next();
+  },
+);
 
 const limitQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(100),

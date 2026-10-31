@@ -12,6 +12,7 @@ export function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [website, setWebsite] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -21,7 +22,7 @@ export function Register() {
     setSubmitting(true);
 
     try {
-      await register(name, email, password);
+      await register(name, email, password, website);
       navigate(from, { replace: true });
     } catch (err) {
       const details = err instanceof ApiError ? err.details : undefined;
@@ -74,11 +75,27 @@ export function Register() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             autoComplete="new-password"
-            minLength={8}
+            minLength={10}
             required
           />
-          <span className="field-hint">Minimal 8 karakter, mengandung huruf dan angka.</span>
+          <span className="field-hint">
+            Minimal 10 karakter, mengandung huruf dan angka, dan bukan kata sandi umum.
+          </span>
         </label>
+
+        <div className="hp-field" aria-hidden="true">
+          <label>
+            Website
+            <input
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              value={website}
+              onChange={(event) => setWebsite(event.target.value)}
+            />
+          </label>
+        </div>
 
         {error ? <p className="form-error">{error}</p> : null}
 

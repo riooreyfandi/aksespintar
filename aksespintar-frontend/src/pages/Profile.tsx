@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { api, isAbortError } from "../api";
 import { useAuth } from "../auth";
 import { PRESET_AVATARS } from "../avatars";
@@ -280,8 +281,7 @@ export function Profile() {
             </p>
           )}
           <p className="profile-card-hint">
-            Total login: {profile.loginCount}
-            {profile.lastLoginAt ? ` · terakhir masuk ${formatDate(profile.lastLoginAt)}` : ""}
+            Keamanan akun: <Link to="/ganti-sandi">ganti kata sandi</Link>
           </p>
         </section>
       </div>

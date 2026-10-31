@@ -15,7 +15,7 @@ type AuthContextValue = {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, website?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: User) => void;
 };
@@ -56,10 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async (name: string, email: string, password: string) => {
+    async (name: string, email: string, password: string, website?: string) => {
       await api<{ user: User }>("/auth/register", {
         method: "POST",
-        body: { name, email, password },
+        body: { name, email, password, website },
       });
       await login(email, password);
     },
@@ -93,6 +93,7 @@ export function useAuth(): AuthContextValue {
 
 // Materi hanya boleh dibuka setelah pengguna masuk. Pengunjung yang belum
 // masuk diarahkan ke halaman masuk, lalu dikembalikan ke halaman tujuannya.
+// Akun yang wajib mengganti kata sandi dipaksa ke halaman ganti sandi dulu.
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -109,6 +110,10 @@ export function RequireAuth({ children }: { children: ReactNode }) {
         state={{ from: `${location.pathname}${location.search}` }}
       />
     );
+  }
+
+  if (user.mustChangePassword && location.pathname !== "/ganti-sandi") {
+    return <Navigate to="/ganti-sandi" replace />;
   }
 
   return <>{children}</>;

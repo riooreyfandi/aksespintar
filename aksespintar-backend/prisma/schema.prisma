@@ -41,6 +41,7 @@ model User {
   passwordHash        String    @map("password_hash")
   role                Role      @default(student)
   avatar              String?   @db.Text
+  mustChangePassword  Boolean   @default(false) @map("must_change_password")
   deletionRequestedAt DateTime? @map("deletion_requested_at")
   loginCount          Int       @default(0) @map("login_count")
   lastLoginAt         DateTime? @map("last_login_at")
@@ -282,4 +283,16 @@ model ChatMessage {
 
   @@index([createdAt])
   @@map("chat_messages")
+}
+
+// Penghitung percobaan untuk membatasi brute force, spam, dan penyalahgunaan
+// endpoint. Disimpan di database agar tetap berlaku antar-instance serverless.
+model RateLimit {
+  key         String   @id @db.VarChar(200)
+  count       Int      @default(0)
+  windowStart DateTime @map("window_start")
+  expiresAt   DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("rate_limits")
 }

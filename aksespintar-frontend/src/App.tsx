@@ -9,6 +9,7 @@ import { Admin } from "./pages/Admin";
 import { Leaderboard } from "./pages/Leaderboard";
 import { Chat } from "./pages/Chat";
 import { Profile } from "./pages/Profile";
+import { ChangePassword } from "./pages/ChangePassword";
 import { NotFound } from "./pages/NotFound";
 
 export function App() {
@@ -52,6 +53,14 @@ export function App() {
           element={
             <RequireAuth>
               <Profile />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="ganti-sandi"
+          element={
+            <RequireAuth>
+              <ChangePassword />
             </RequireAuth>
           }
         />

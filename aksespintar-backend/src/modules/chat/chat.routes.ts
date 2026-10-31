@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AppError, asyncHandler } from "../../lib/errors";
 import { prisma } from "../../lib/prisma";
 import { requireAuth } from "../../middleware/auth";
+import { rateLimit } from "../../lib/rate-limit";
 
 const router = Router();
 
@@ -29,6 +30,15 @@ const messageSelect = {
   user: { select: { id: true, name: true, role: true, avatar: true } },
 } as const;
 
+// Cegah spam pesan: maksimal 20 pesan per menit per pengguna.
+const postLimit = rateLimit({
+  scope: "chat.post",
+  limit: 20,
+  windowMs: 60 * 1000,
+  key: (req) => req.user?.id ?? "anonim",
+  message: "Terlalu banyak pesan terkirim. Tunggu sebentar, ya.",
+});
+
 router.get(
   "/",
   asyncHandler(async (req, res) => {
@@ -48,6 +58,7 @@ router.get(
 
 router.post(
   "/",
+  postLimit,
   asyncHandler(async (req, res) => {
     const { body } = messageSchema.parse(req.body);
 

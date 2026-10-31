@@ -3,8 +3,44 @@ import argon2 from "argon2";
 import { PrismaClient } from "@prisma/client";
 import { categories, legacyCategorySlugs, materials } from "./data/materials";
 import { quizzes } from "./data/quizzes";
+import { adminPasswordProblem } from "../src/lib/password";
 
 const prisma = new PrismaClient();
+
+// Sandi bawaan yang sering dipakai. Bila hash admin cocok dengan salah satunya,
+// akun ditandai wajib ganti sandi agar kredensial default tidak bisa dipakai
+// terus-menerus.
+const DEFAULT_PASSWORD_CANDIDATES = [
+  "admin",
+  "admin123",
+  "admin1234",
+  "admin12345",
+  "administrator",
+  "adminadmin",
+  "password",
+  "password123",
+  "password1234",
+  "passw0rd",
+  "p@ssw0rd",
+  "rahasia",
+  "rahasia123",
+  "12345678",
+  "123456789",
+  "1234567890",
+  "qwerty123",
+  "aksespintar",
+  "aksespintar123",
+  "admin@123",
+  "Admin@123",
+  "Admin123!",
+];
+
+async function hasDefaultPassword(passwordHash: string): Promise<boolean> {
+  for (const candidate of DEFAULT_PASSWORD_CANDIDATES) {
+    if (await argon2.verify(passwordHash, candidate)) return true;
+  }
+  return false;
+}
 
 async function main() {
   const email = process.env.SEED_ADMIN_EMAIL;
@@ -14,16 +50,36 @@ async function main() {
   }
 
   // 1. Akun admin (password di-hash dengan Argon2id)
-  const admin = await prisma.user.upsert({
-    where: { email },
-    update: {},
-    create: {
-      name: "Admin AksesPintar",
-      email,
-      passwordHash: await argon2.hash(password, { type: argon2.argon2id }),
-      role: "admin",
-    },
-  });
+  const existingAdmin = await prisma.user.findUnique({ where: { email } });
+  let admin;
+
+  if (existingAdmin) {
+    const weak = await hasDefaultPassword(existingAdmin.passwordHash);
+    admin = await prisma.user.update({
+      where: { id: existingAdmin.id },
+      data: weak ? { mustChangePassword: true } : {},
+    });
+    if (weak) {
+      console.warn(
+        `PERINGATAN: kata sandi admin "${email}" masih kata sandi bawaan. ` +
+          "Akun ditandai wajib ganti sandi saat login berikutnya.",
+      );
+    }
+  } else {
+    const problem = adminPasswordProblem(password, { email });
+    if (problem) {
+      throw new Error(`SEED_ADMIN_PASSWORD tidak memenuhi kebijakan: ${problem}`);
+    }
+    admin = await prisma.user.create({
+      data: {
+        name: "Admin AksesPintar",
+        email,
+        passwordHash: await argon2.hash(password, { type: argon2.argon2id }),
+        role: "admin",
+        mustChangePassword: false,
+      },
+    });
+  }
 
   // 2. Kategori
   for (const k of categories) {

@@ -5,9 +5,10 @@ import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { ZodError } from "zod";
-import { env } from "./config/env";
 import { prisma } from "./lib/prisma";
 import { AppError } from "./lib/errors";
+import { isAllowedOrigin, originCheck } from "./lib/origin";
+import { rateLimit } from "./lib/rate-limit";
 import authRoutes from "./modules/auth/auth.routes";
 import categoryRoutes from "./modules/categories/categories.routes";
 import materialsRoutes from "./modules/materials/materials.routes";
@@ -18,8 +19,23 @@ import adminRoutes from "./modules/admin/admin.routes";
 
 export const app = express();
 
-app.use(helmet());
-app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+app.disable("x-powered-by");
+app.set("trust proxy", true);
+
+app.use(
+  helmet({
+    referrerPolicy: { policy: "no-referrer" },
+    hsts: { maxAge: 15552000, includeSubDomains: true, preload: false },
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
+app.use(
+  cors({
+    origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
+    credentials: true,
+  }),
+);
+app.use(originCheck);
 
 // Netlify Functions (serverless-http) sudah mengisi req.body dengan Buffer mentah.
 // Normalisasi di sini agar perilakunya sama dengan server Node biasa, dan body
@@ -57,6 +73,18 @@ app.get("/api/v1/health", async (_req, res) => {
     res.status(503).json({ status: "error" });
   }
 });
+
+// Jaring pengaman umum: batasi jumlah permintaan per IP agar endpoint tidak
+// mudah dibanjiri. Batas ini cukup longgar untuk pemakaian normal.
+app.use(
+  "/api/v1",
+  rateLimit({
+    scope: "api.global",
+    limit: 400,
+    windowMs: 60 * 1000,
+    message: "Terlalu banyak permintaan. Coba lagi sebentar.",
+  }),
+);
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/categories", categoryRoutes);
@@ -102,6 +130,9 @@ app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
 
   // Error yang kita lempar sendiri
   if (err instanceof AppError) {
+    if (err.retryAfter) {
+      res.setHeader("Retry-After", String(err.retryAfter));
+    }
     return res.status(err.status).json({ error: { code: err.code, message: err.message } });
   }
 

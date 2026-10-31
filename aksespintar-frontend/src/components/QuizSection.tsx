@@ -155,7 +155,6 @@ export function QuizSection({ slug }: { slug: string }) {
               if (!item) return null;
 
               const selected = question.options.find((option) => option.id === item.selectedOptionId);
-              const correct = question.options.find((option) => option.id === item.correctOptionId);
 
               return (
                 <li key={question.id} className="quiz-review-item">
@@ -171,7 +170,7 @@ export function QuizSection({ slug }: { slug: string }) {
                   </p>
                   {!item.isCorrect ? (
                     <p className="quiz-review-answer">
-                      Jawaban benar: <strong>{correct?.optionText ?? "-"}</strong>
+                      Jawaban benar: <strong>{item.correctOptionText ?? "-"}</strong>
                     </p>
                   ) : null}
                   {item.explanation ? <p className="quiz-review-note">{item.explanation}</p> : null}
