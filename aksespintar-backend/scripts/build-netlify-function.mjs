@@ -77,5 +77,8 @@ await copy(path.join(root, "node_modules", "@phc", "format"), path.join(modulesD
 // serverless-http dipakai langsung oleh netlify/functions/api.js (di luar bundel esbuild)
 await copy(path.join(root, "node_modules", "serverless-http"), path.join(modulesDir, "serverless-http"));
 
+// supports-color: dibutuhkan nodemailer (ESM-only, tidak bisa di-bundle esbuild)
+await copy(path.join(root, "node_modules", "supports-color"), path.join(modulesDir, "supports-color"));
+
 console.log("Netlify Function siap di", outDir);
 
