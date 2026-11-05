@@ -9,6 +9,7 @@ import { prisma } from "./lib/prisma";
 import { AppError } from "./lib/errors";
 import { isAllowedOrigin, originCheck } from "./lib/origin";
 import { rateLimit } from "./lib/rate-limit";
+import { getAvatarDir } from "./lib/avatar";
 import authRoutes from "./modules/auth/auth.routes";
 import categoryRoutes from "./modules/categories/categories.routes";
 import materialsRoutes from "./modules/materials/materials.routes";
@@ -93,6 +94,16 @@ app.use("/api/v1/quizzes", quizzesRoutes);
 app.use("/api/v1/chat", chatRoutes);
 app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/admin", adminRoutes);
+
+// Sajikan file avatar — folder dibuat otomatis oleh lib/avatar.ts
+app.use(
+  "/api/v1/avatars",
+  express.static(getAvatarDir(), {
+    maxAge: "7d",
+    immutable: false,
+    index: false,
+  }),
+);
 
 // Sajikan hasil build frontend bila tersedia, supaya website dan API satu alamat.
 const frontendDist = [process.env.FRONTEND_DIST, path.resolve(__dirname, "../../aksespintar-frontend/dist")]

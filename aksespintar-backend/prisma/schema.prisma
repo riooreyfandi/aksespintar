@@ -40,7 +40,10 @@ model User {
   email               String    @unique @db.VarChar(255)
   passwordHash        String    @map("password_hash")
   role                Role      @default(student)
-  avatar              String?   @db.Text
+  // Avatar disimpan sebagai path relatif file (misalnya "abc123.webp") atau
+  // string preset ("preset:nama"). Tidak lagi menyimpan base64 langsung.
+  avatar              String?   @db.VarChar(300)
+  emailVerified       Boolean   @default(false) @map("email_verified")
   mustChangePassword  Boolean   @default(false) @map("must_change_password")
   deletionRequestedAt DateTime? @map("deletion_requested_at")
   loginCount          Int       @default(0) @map("login_count")
@@ -48,16 +51,30 @@ model User {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
-  materials    LearningMaterial[]
-  attempts     QuizAttempt[]
-  progress     MaterialProgress[]
-  bookmarks    Bookmark[]
-  sessions     Session[]
-  resetTokens  PasswordResetToken[]
-  auditLogs    AuditLog[]
-  chatMessages ChatMessage[]
+  materials          LearningMaterial[]
+  attempts           QuizAttempt[]
+  progress           MaterialProgress[]
+  bookmarks          Bookmark[]
+  sessions           Session[]
+  resetTokens        PasswordResetToken[]
+  emailVerifications EmailVerification[]
+  auditLogs          AuditLog[]
+  chatMessages       ChatMessage[]
 
   @@map("users")
+}
+
+model EmailVerification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verifications")
 }
 
 model Session {

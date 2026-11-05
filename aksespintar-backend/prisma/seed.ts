@@ -57,7 +57,8 @@ async function main() {
     const weak = await hasDefaultPassword(existingAdmin.passwordHash);
     admin = await prisma.user.update({
       where: { id: existingAdmin.id },
-      data: weak ? { mustChangePassword: true } : {},
+      // Akun lama yang dibuat sebelum fitur emailVerified: set verified=true
+      data: { emailVerified: true, ...(weak ? { mustChangePassword: true } : {}) },
     });
     if (weak) {
       console.warn(
@@ -76,6 +77,7 @@ async function main() {
         email,
         passwordHash: await argon2.hash(password, { type: argon2.argon2id }),
         role: "admin",
+        emailVerified: true, // akun admin dibuat langsung via seed, tidak perlu verifikasi
         mustChangePassword: false,
       },
     });

@@ -10,6 +10,10 @@ import { Leaderboard } from "./pages/Leaderboard";
 import { Chat } from "./pages/Chat";
 import { Profile } from "./pages/Profile";
 import { ChangePassword } from "./pages/ChangePassword";
+import { ForgotPassword } from "./pages/ForgotPassword";
+import { ResetPassword } from "./pages/ResetPassword";
+import { VerifyEmail } from "./pages/VerifyEmail";
+import { ResendVerification } from "./pages/ResendVerification";
 import { NotFound } from "./pages/NotFound";
 
 export function App() {
@@ -66,6 +70,10 @@ export function App() {
         />
         <Route path="masuk" element={<Login />} />
         <Route path="daftar" element={<Register />} />
+        <Route path="lupa-sandi" element={<ForgotPassword />} />
+        <Route path="reset-sandi" element={<ResetPassword />} />
+        <Route path="verifikasi-email" element={<VerifyEmail />} />
+        <Route path="kirim-ulang-verifikasi" element={<ResendVerification />} />
         <Route path="admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Route>

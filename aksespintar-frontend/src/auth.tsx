@@ -57,13 +57,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     async (name: string, email: string, password: string, website?: string) => {
-      await api<{ user: User }>("/auth/register", {
+      await api<{ message: string }>("/auth/register", {
         method: "POST",
         body: { name, email, password, website },
       });
-      await login(email, password);
+      // Setelah register, user harus verifikasi email dulu sebelum login.
+      // Tidak ada auto-login di sini.
     },
-    [login],
+    [],
   );
 
   const logout = useCallback(async () => {

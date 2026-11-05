@@ -5,6 +5,7 @@ export type User = {
   role: string;
   avatar: string | null;
   mustChangePassword?: boolean;
+  emailVerified?: boolean;
 };
 
 export type Profile = User & {

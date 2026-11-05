@@ -10,6 +10,7 @@ export type AuthUser = {
   role: "student" | "contributor" | "admin";
   avatar: string | null;
   mustChangePassword: boolean;
+  emailVerified: boolean;
 };
 
 async function authenticate(req: Request): Promise<AuthUser> {
@@ -28,8 +29,8 @@ async function authenticate(req: Request): Promise<AuthUser> {
 
   touchSession(session.id, session.lastSeenAt);
 
-  const { id, name, email, role, avatar, mustChangePassword } = session.user;
-  return { id, name, email, role, avatar, mustChangePassword };
+  const { id, name, email, role, avatar, mustChangePassword, emailVerified } = session.user;
+  return { id, name, email, role, avatar, mustChangePassword, emailVerified };
 }
 
 // Login biasa. Akun yang wajib mengganti kata sandi (mis. masih memakai sandi

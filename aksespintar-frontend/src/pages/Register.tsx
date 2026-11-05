@@ -1,11 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth";
-import { ApiError } from "../api";
+import { api, ApiError } from "../api";
 
 export function Register() {
-  const { register, user } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/";
 
@@ -15,6 +14,7 @@ export function Register() {
   const [website, setWebsite] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -22,8 +22,11 @@ export function Register() {
     setSubmitting(true);
 
     try {
-      await register(name, email, password, website);
-      navigate(from, { replace: true });
+      await api<{ message: string }>("/auth/register", {
+        method: "POST",
+        body: { name, email, password, website },
+      });
+      setRegistered(true);
     } catch (err) {
       const details = err instanceof ApiError ? err.details : undefined;
       setError(
@@ -37,6 +40,29 @@ export function Register() {
 
   if (user) {
     return <Navigate to={from} replace />;
+  }
+
+  if (registered) {
+    return (
+      <div className="auth-card">
+        <h1>Cek Email Kamu! 📬</h1>
+        <p className="auth-subtitle">
+          Pendaftaran berhasil! Kami sudah mengirim tautan verifikasi ke{" "}
+          <strong>{email}</strong>.
+        </p>
+        <p className="auth-subtitle">
+          Klik tautan di email tersebut untuk mengaktifkan akunmu, kemudian kamu bisa masuk.
+          Tautan berlaku selama <strong>24 jam</strong>.
+        </p>
+        <p style={{ fontSize: "0.875rem", color: "var(--color-muted, #6b7280)", marginTop: "0.75rem" }}>
+          Tidak menerima email?{" "}
+          <Link to="/kirim-ulang-verifikasi">Kirim ulang</Link>
+        </p>
+        <Link to="/masuk" className="btn btn-ghost btn-block" style={{ marginTop: "1rem" }}>
+          Ke halaman masuk
+        </Link>
+      </div>
+    );
   }
 
   return (

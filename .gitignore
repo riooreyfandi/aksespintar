@@ -10,3 +10,6 @@ aksespintar-backend/netlify/functions/lib/
 aksespintar-backend/netlify/functions/node_modules/
 aksespintar-backend/public/
 .netlify/
+
+# Avatar uploads (file yang diunggah user, tidak di-commit ke git)
+aksespintar-backend/uploads/

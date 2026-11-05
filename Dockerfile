@@ -21,5 +21,6 @@ RUN npm run build
 COPY --from=frontend /app/frontend/dist /app/frontend/dist
 ENV NODE_ENV=production
 ENV FRONTEND_DIST=/app/frontend/dist
+ENV AVATAR_DIR=/app/data/avatars
 EXPOSE 4000
-CMD ["sh", "-c", "npx prisma migrate deploy && if [ -n \"$SEED_ADMIN_EMAIL\" ] && [ -n \"$SEED_ADMIN_PASSWORD\" ]; then npx prisma db seed; fi && node dist/server.js"]
+CMD ["sh", "-c", "mkdir -p /app/data/avatars && npx prisma migrate deploy && if [ -n \"$SEED_ADMIN_EMAIL\" ] && [ -n \"$SEED_ADMIN_PASSWORD\" ]; then npx prisma db seed; fi && node dist/server.js"]

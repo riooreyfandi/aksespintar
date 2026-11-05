@@ -6,13 +6,11 @@ import { recordAudit } from "../../lib/audit";
 import { getClientIp, getClientUserAgent } from "../../lib/request-meta";
 import { requireAuth } from "../../middleware/auth";
 import { rateLimit } from "../../lib/rate-limit";
+import { saveAvatarFromBase64, deleteAvatarFile } from "../../lib/avatar";
 
 const router = Router();
 
-const MAX_AVATAR_LENGTH = 600_000; // cukup untuk foto yang sudah dikompres di browser
-
-// Hanya data yang benar-benar dipakai halaman profil. Informasi internal
-// (jumlah login, waktu login terakhir, hash sandi, dsb.) tidak ikut dikirim.
+// Hanya data yang benar-benar dipakai halaman profil.
 const profileSelect = {
   id: true,
   name: true,
@@ -22,6 +20,10 @@ const profileSelect = {
   createdAt: true,
 } as const;
 
+// Avatar dikirim dari client sebagai data-URL base64 atau string preset.
+// Ukuran maksimum setelah decode ~800 KB (encode base64 menambah ~33%).
+const MAX_BASE64_LENGTH = 1_100_000; // ~800 KB decoded
+
 const updateSchema = z
   .object({
     name: z
@@ -30,14 +32,11 @@ const updateSchema = z
       .min(2, "Nama minimal 2 karakter.")
       .max(100, "Nama maksimal 100 karakter.")
       .optional(),
+    // Terima base64 data-URL atau string preset; validasi lanjutan di handler
     avatar: z
       .string()
       .trim()
-      .max(MAX_AVATAR_LENGTH, "Ukuran foto avatar terlalu besar.")
-      .regex(
-        /^(preset:[a-z0-9-]{1,40}|data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+)$/,
-        "Format avatar tidak didukung.",
-      )
+      .max(MAX_BASE64_LENGTH, "Ukuran foto avatar terlalu besar.")
       .nullable()
       .optional(),
   })
@@ -72,11 +71,52 @@ router.patch(
   asyncHandler(async (req, res) => {
     const data = updateSchema.parse(req.body);
 
+    let avatarValue: string | null | undefined = undefined;
+
+    if (data.avatar !== undefined) {
+      if (data.avatar === null) {
+        // Hapus avatar — ambil nilai lama dulu baru hapus file
+        const current = await prisma.user.findUnique({
+          where: { id: req.user!.id },
+          select: { avatar: true },
+        });
+        deleteAvatarFile(current?.avatar);
+        avatarValue = null;
+      } else if (data.avatar.startsWith("preset:")) {
+        // Validasi nama preset
+        if (!/^preset:[a-z0-9-]{1,40}$/.test(data.avatar)) {
+          return res.status(400).json({
+            error: { code: "INVALID_AVATAR", message: "Nama preset avatar tidak valid." },
+          });
+        }
+        // Hapus file lama kalau ada
+        const current = await prisma.user.findUnique({
+          where: { id: req.user!.id },
+          select: { avatar: true },
+        });
+        deleteAvatarFile(current?.avatar);
+        avatarValue = data.avatar;
+      } else if (data.avatar.startsWith("data:image/")) {
+        // Simpan file baru, hapus file lama
+        const current = await prisma.user.findUnique({
+          where: { id: req.user!.id },
+          select: { avatar: true },
+        });
+        // saveAvatarFromBase64 melempar AppError jika validasi gagal
+        const filename = saveAvatarFromBase64(data.avatar, current?.avatar);
+        avatarValue = filename;
+      } else {
+        return res.status(400).json({
+          error: { code: "INVALID_AVATAR", message: "Format avatar tidak didukung." },
+        });
+      }
+    }
+
     const user = await prisma.user.update({
       where: { id: req.user!.id },
       data: {
         ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.avatar !== undefined ? { avatar: data.avatar } : {}),
+        ...(avatarValue !== undefined ? { avatar: avatarValue } : {}),
       },
       select: profileSelect,
     });

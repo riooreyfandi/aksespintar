@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Router } from "express";
 import argon2 from "argon2";
 import { z } from "zod";
@@ -15,6 +16,7 @@ import {
   passwordProblem,
 } from "../../lib/password";
 import { consumeRateLimit, rateLimit, resetRateLimit } from "../../lib/rate-limit";
+import { sendVerificationEmail, sendPasswordResetEmail } from "../../lib/mailer";
 
 const router = Router();
 
@@ -38,6 +40,19 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(1, "Kata sandi baru wajib diisi.").max(128),
 });
 
+const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Token wajib diisi.").max(128),
+  newPassword: z.string().min(1, "Kata sandi baru wajib diisi.").max(128),
+});
+
+const verifyEmailSchema = z.object({
+  token: z.string().min(1, "Token wajib diisi.").max(128),
+});
+
 // Hash palsu: dipakai agar waktu respons sama, baik email ada maupun tidak
 let dummyHash: Promise<string> | null = null;
 const getDummyHash = () => (dummyHash ??= argon2.hash("kata-sandi-palsu", { type: argon2.argon2id }));
@@ -49,6 +64,7 @@ const userShape = {
   role: true,
   avatar: true,
   mustChangePassword: true,
+  emailVerified: true,
 } as const;
 
 const loginIpLimit = rateLimit({
@@ -73,6 +89,41 @@ const changePasswordLimit = rateLimit({
   key: (req) => req.user?.id ?? "anonim",
 });
 
+const forgotPasswordLimit = rateLimit({
+  scope: "auth.forgot-password",
+  limit: 5,
+  windowMs: 60 * 60 * 1000,
+  message: "Terlalu banyak permintaan reset. Coba lagi nanti.",
+});
+
+const resendVerificationLimit = rateLimit({
+  scope: "auth.resend-verification",
+  limit: 3,
+  windowMs: 60 * 60 * 1000,
+  message: "Terlalu banyak permintaan kirim ulang. Coba lagi nanti.",
+});
+
+// ── Helper ─────────────────────────────────────────────────────────────────
+
+async function createAndSendVerification(userId: string, email: string, name: string) {
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 jam
+
+  // Hapus token lama yang belum terpakai untuk akun ini
+  await prisma.emailVerification.deleteMany({ where: { userId, usedAt: null } });
+
+  await prisma.emailVerification.create({
+    data: { userId, tokenHash: hashToken(token), expiresAt },
+  });
+
+  // Kirim email di latar belakang — jangan blokir respons register
+  void sendVerificationEmail(email, name, token).catch((err: unknown) =>
+    console.error("[mailer] Gagal kirim verifikasi:", err),
+  );
+}
+
+// ── Register ───────────────────────────────────────────────────────────────
+
 router.post(
   "/register",
   registerIpLimit,
@@ -96,7 +147,7 @@ router.post(
     try {
       const user = await prisma.user.create({
         data: { name: data.name, email: data.email, passwordHash },
-        select: userShape,
+        select: { id: true, name: true, email: true },
       });
 
       await recordAudit({
@@ -104,13 +155,15 @@ router.post(
         action: "auth.register",
         entityType: "user",
         entityId: user.id,
-        metadata: {
-          ip: getClientIp(req),
-          userAgent: getClientUserAgent(req),
-        },
+        metadata: { ip: getClientIp(req), userAgent: getClientUserAgent(req) },
       });
 
-      res.status(201).json({ user });
+      // Kirim email verifikasi (async, tidak blokir response)
+      await createAndSendVerification(user.id, user.email, user.name);
+
+      res.status(201).json({
+        message: "Pendaftaran berhasil. Cek emailmu untuk verifikasi akun.",
+      });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         throw new AppError(409, "EMAIL_TAKEN", "Email sudah terdaftar.");
@@ -119,6 +172,80 @@ router.post(
     }
   }),
 );
+
+// ── Verifikasi Email ───────────────────────────────────────────────────────
+
+router.post(
+  "/verify-email",
+  asyncHandler(async (req, res) => {
+    const { token } = verifyEmailSchema.parse(req.body);
+    const tokenHash = hashToken(token);
+
+    const record = await prisma.emailVerification.findUnique({
+      where: { tokenHash },
+      include: { user: { select: { id: true, emailVerified: true } } },
+    });
+
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      throw new AppError(400, "INVALID_TOKEN", "Token verifikasi tidak valid atau sudah kedaluwarsa.");
+    }
+
+    if (record.user.emailVerified) {
+      // Sudah terverifikasi sebelumnya — tandai token sebagai terpakai dan
+      // kembalikan sukses supaya flow redirect di frontend tidak error.
+      await prisma.emailVerification.update({
+        where: { tokenHash },
+        data: { usedAt: new Date() },
+      });
+      return res.json({ message: "Email sudah terverifikasi." });
+    }
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: record.userId },
+        data: { emailVerified: true },
+      }),
+      prisma.emailVerification.update({
+        where: { tokenHash },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+
+    await recordAudit({
+      actorId: record.userId,
+      action: "auth.email-verified",
+      entityType: "user",
+      entityId: record.userId,
+    });
+
+    res.json({ message: "Email berhasil diverifikasi. Kamu sekarang bisa masuk." });
+  }),
+);
+
+// ── Kirim Ulang Verifikasi ─────────────────────────────────────────────────
+
+router.post(
+  "/resend-verification",
+  resendVerificationLimit,
+  asyncHandler(async (req, res) => {
+    const { email } = forgotPasswordSchema.parse(req.body);
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, name: true, email: true, emailVerified: true },
+    });
+
+    // Selalu balas sukses untuk mencegah enumerasi email
+    if (!user || user.emailVerified) {
+      return res.json({ message: "Jika email terdaftar dan belum diverifikasi, email verifikasi sudah dikirim." });
+    }
+
+    await createAndSendVerification(user.id, user.email, user.name);
+    res.json({ message: "Email verifikasi sudah dikirim ulang. Cek kotak masukmu." });
+  }),
+);
+
+// ── Login ──────────────────────────────────────────────────────────────────
 
 router.post(
   "/login",
@@ -155,6 +282,15 @@ router.post(
       throw new AppError(401, "INVALID_CREDENTIALS", "Email atau kata sandi salah.");
     }
 
+    // Blokir login jika email belum diverifikasi
+    if (!user.emailVerified) {
+      throw new AppError(
+        403,
+        "EMAIL_NOT_VERIFIED",
+        "Email kamu belum diverifikasi. Cek kotak masukmu atau minta kirim ulang.",
+      );
+    }
+
     const weakPassword = isCommonPassword(data.password) || data.password.length < MIN_PASSWORD_LENGTH;
     const mustChangePassword = user.mustChangePassword || (user.role === "admin" && weakPassword);
 
@@ -183,11 +319,7 @@ router.post(
       actorId: user.id,
       action: "auth.login",
       entityType: "session",
-      metadata: {
-        ip,
-        userAgent,
-        loginKe: updated.loginCount,
-      },
+      metadata: { ip, userAgent, loginKe: updated.loginCount },
     });
 
     await resetRateLimit(`auth.login.email:${data.email}`);
@@ -200,10 +332,13 @@ router.post(
         role: user.role,
         avatar: user.avatar,
         mustChangePassword,
+        emailVerified: user.emailVerified,
       },
     });
   }),
 );
+
+// ── Ganti Password (autentikasi aktif) ─────────────────────────────────────
 
 router.post(
   "/change-password",
@@ -255,10 +390,7 @@ router.post(
       action: "auth.password-changed",
       entityType: "user",
       entityId: user.id,
-      metadata: {
-        ip: getClientIp(req),
-        userAgent: getClientUserAgent(req),
-      },
+      metadata: { ip: getClientIp(req), userAgent: getClientUserAgent(req) },
     });
 
     res.json({
@@ -269,10 +401,111 @@ router.post(
         role: user.role,
         avatar: user.avatar,
         mustChangePassword: false,
+        emailVerified: true,
       },
     });
   }),
 );
+
+// ── Lupa Password ──────────────────────────────────────────────────────────
+
+router.post(
+  "/forgot-password",
+  forgotPasswordLimit,
+  asyncHandler(async (req, res) => {
+    const { email } = forgotPasswordSchema.parse(req.body);
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, name: true, email: true, emailVerified: true },
+    });
+
+    // Selalu balas sukses untuk mencegah enumerasi email
+    if (!user || !user.emailVerified) {
+      return res.json({
+        message: "Jika email terdaftar, tautan reset kata sandi sudah dikirim.",
+      });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 jam
+
+    // Hapus token lama yang belum terpakai
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
+
+    await prisma.passwordResetToken.create({
+      data: { userId: user.id, tokenHash: hashToken(token), expiresAt },
+    });
+
+    void sendPasswordResetEmail(user.email, user.name, token).catch((err: unknown) =>
+      console.error("[mailer] Gagal kirim reset sandi:", err),
+    );
+
+    await recordAudit({
+      actorId: user.id,
+      action: "auth.forgot-password",
+      entityType: "user",
+      entityId: user.id,
+      metadata: { ip: getClientIp(req), userAgent: getClientUserAgent(req) },
+    });
+
+    res.json({ message: "Jika email terdaftar, tautan reset kata sandi sudah dikirim." });
+  }),
+);
+
+// ── Reset Password via Token ───────────────────────────────────────────────
+
+router.post(
+  "/reset-password",
+  asyncHandler(async (req, res) => {
+    const { token, newPassword } = resetPasswordSchema.parse(req.body);
+    const tokenHash = hashToken(token);
+
+    const record = await prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
+
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      throw new AppError(400, "INVALID_TOKEN", "Token reset tidak valid atau sudah kedaluwarsa.");
+    }
+
+    const problem = passwordProblem(newPassword, {
+      email: record.user.email,
+      name: record.user.name,
+    });
+    if (problem) {
+      throw new AppError(400, "WEAK_PASSWORD", problem);
+    }
+
+    const passwordHash = await argon2.hash(newPassword, { type: argon2.argon2id });
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: record.userId },
+        data: { passwordHash, mustChangePassword: false },
+      }),
+      prisma.passwordResetToken.update({
+        where: { tokenHash },
+        data: { usedAt: new Date() },
+      }),
+      // Cabut semua sesi aktif untuk keamanan
+      prisma.session.deleteMany({ where: { userId: record.userId } }),
+    ]);
+
+    await recordAudit({
+      actorId: record.userId,
+      action: "auth.password-reset",
+      entityType: "user",
+      entityId: record.userId,
+      metadata: { ip: getClientIp(req), userAgent: getClientUserAgent(req) },
+    });
+
+    res.json({ message: "Kata sandi berhasil direset. Silakan masuk dengan kata sandi baru." });
+  }),
+);
+
+// ── Logout ─────────────────────────────────────────────────────────────────
 
 router.post(
   "/logout",
@@ -304,7 +537,8 @@ router.post(
   }),
 );
 
-// Tambahan di luar tabel PRD: dipakai frontend untuk tahu siapa yang sedang login
+// ── Me ─────────────────────────────────────────────────────────────────────
+
 router.get("/me", requireAuthRaw, (req, res) => {
   res.json({ user: req.user });
 });

@@ -38,6 +38,8 @@ async function main() {
     data: {
       passwordHash: await argon2.hash(newPassword, { type: argon2.argon2id }),
       mustChangePassword: false,
+      // Pastikan akun yang di-reset via CLI tetap bisa login
+      emailVerified: true,
     },
   });
 
