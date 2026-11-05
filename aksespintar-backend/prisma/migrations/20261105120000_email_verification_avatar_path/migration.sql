@@ -1,5 +1,10 @@
 -- AlterTable: tambah kolom email_verified ke users
+-- Default false untuk user baru. Akun yang sudah ada sebelum migrasi ini
+-- dianggap emailnya valid (dibuat sebelum fitur verifikasi ada).
 ALTER TABLE "users" ADD COLUMN "email_verified" BOOLEAN NOT NULL DEFAULT false;
+
+-- Set semua akun yang sudah ada menjadi verified agar tidak terkunci
+UPDATE "users" SET "email_verified" = true WHERE "email_verified" = false;
 
 -- AlterTable: ubah tipe avatar dari Text ke VarChar(300)
 -- Avatar lama yang base64 (panjang > 300) dipotong menjadi null dulu,
