@@ -61705,11 +61705,14 @@ exports.app.use("/api/v1/quizzes", quizzes_routes_1.default);
 exports.app.use("/api/v1/chat", chat_routes_1.default);
 exports.app.use("/api/v1/profile", profile_routes_1.default);
 exports.app.use("/api/v1/admin", admin_routes_1.default);
-exports.app.use("/api/v1/avatars", express_1.default.static((0, avatar_1.getAvatarDir)(), {
-  maxAge: "7d",
-  immutable: false,
-  index: false
-}));
+exports.app.use("/api/v1/avatars", (req, res, next) => {
+  try {
+    const dir = (0, avatar_1.getAvatarDir)();
+    express_1.default.static(dir, { maxAge: "7d", immutable: false, index: false })(req, res, next);
+  } catch {
+    res.status(404).json({ error: { code: "NOT_FOUND", message: "Avatar tidak ditemukan." } });
+  }
+});
 var frontendDist = [process.env.FRONTEND_DIST, node_path_1.default.resolve(__dirname, "../../aksespintar-frontend/dist")].filter((dir) => Boolean(dir)).find((dir) => node_fs_1.default.existsSync(node_path_1.default.join(dir, "index.html")));
 if (frontendDist) {
   exports.app.use(express_1.default.static(frontendDist));

@@ -95,14 +95,18 @@ app.use("/api/v1/chat", chatRoutes);
 app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/admin", adminRoutes);
 
-// Sajikan file avatar — folder dibuat otomatis oleh lib/avatar.ts
+// Sajikan file avatar — folder dibuat otomatis oleh lib/avatar.ts saat pertama kali diakses
 app.use(
   "/api/v1/avatars",
-  express.static(getAvatarDir(), {
-    maxAge: "7d",
-    immutable: false,
-    index: false,
-  }),
+  (req, res, next) => {
+    // Lazy: buat direktori dan serve hanya saat ada request avatar
+    try {
+      const dir = getAvatarDir();
+      express.static(dir, { maxAge: "7d", immutable: false, index: false })(req, res, next);
+    } catch {
+      res.status(404).json({ error: { code: "NOT_FOUND", message: "Avatar tidak ditemukan." } });
+    }
+  },
 );
 
 // Sajikan hasil build frontend bila tersedia, supaya website dan API satu alamat.
