@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p prisma/tsconfig.json",
     "start": "node dist/server.js",
     "reset-password": "tsx prisma/reset.password.ts",
+    "delete-user": "tsx prisma/delete.user.ts",
     "test": "vitest run --passWithNoTests",
     "build:netlify": "npm run build && node scripts/build-netlify-function.mjs"
   },
