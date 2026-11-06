@@ -33,6 +33,8 @@ const DEFAULT_PASSWORD_CANDIDATES = [
   "admin@123",
   "Admin@123",
   "Admin123!",
+  "Tes12345",
+  "tes12345",
 ];
 
 async function hasDefaultPassword(passwordHash: string): Promise<boolean> {

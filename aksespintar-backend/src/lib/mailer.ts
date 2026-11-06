@@ -1,42 +1,67 @@
 import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 import { env } from "../config/env";
-
-// Buat transporter sekali, reuse koneksi SMTP antar-request.
-function createTransporter() {
-  // Dev: gunakan Ethereal (email palsu, bisa dibuka di https://ethereal.email)
-  // Production: gunakan SMTP_HOST/PORT/USER/PASS dari env
-  if (env.NODE_ENV !== "production") {
-    return nodemailer.createTransport({
-      host: env.SMTP_HOST || "smtp.ethereal.email",
-      port: env.SMTP_PORT || 587,
-      auth: env.SMTP_USER
-        ? { user: env.SMTP_USER, pass: env.SMTP_PASS }
-        : undefined,
-    });
-  }
-
-  return nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT,
-    secure: env.SMTP_PORT === 465,
-    auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASS,
-    },
-  });
-}
-
-const transporter = createTransporter();
 
 const FROM_ADDRESS = `"AksesPintar" <${env.SMTP_FROM || "noreply@aksespintar.id"}>`;
 const APP_URL = env.APP_URL || "http://localhost:5173";
+
+// ── Lazy transporter ────────────────────────────────────────────────────────
+// Transporter dibuat on-demand (bukan saat module load) agar bisa async:
+// di development tanpa konfigurasi SMTP, kita buat akun Ethereal otomatis
+// lewat nodemailer.createTestAccount() yang perlu await.
+
+let _transporter: Transporter | null = null;
+
+async function getTransporter(): Promise<Transporter> {
+  if (_transporter) return _transporter;
+
+  // Production: wajib pakai SMTP nyata dari env.
+  if (env.NODE_ENV === "production") {
+    if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) {
+      throw new Error(
+        "[mailer] SMTP belum dikonfigurasi. Tambahkan SMTP_HOST, SMTP_USER, dan SMTP_PASS ke environment.",
+      );
+    }
+    _transporter = nodemailer.createTransport({
+      host: env.SMTP_HOST,
+      port: env.SMTP_PORT,
+      secure: env.SMTP_PORT === 465,
+      auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+    });
+    return _transporter;
+  }
+
+  // Development: jika SMTP_HOST dan SMTP_USER dikonfigurasi, pakai itu.
+  if (env.SMTP_HOST && env.SMTP_USER) {
+    _transporter = nodemailer.createTransport({
+      host: env.SMTP_HOST,
+      port: env.SMTP_PORT,
+      auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+    });
+    console.log(`[mailer] Dev: pakai SMTP ${env.SMTP_HOST}:${env.SMTP_PORT}`);
+    return _transporter;
+  }
+
+  // Development fallback: buat akun Ethereal otomatis.
+  // Email tidak benar-benar dikirim — preview tersedia di URL yang dicetak ke console.
+  const testAccount = await nodemailer.createTestAccount();
+  _transporter = nodemailer.createTransport({
+    host: "smtp.ethereal.email",
+    port: 587,
+    secure: false,
+    auth: { user: testAccount.user, pass: testAccount.pass },
+  });
+  console.log(`[mailer] Dev: Ethereal account siap → ${testAccount.user}`);
+  return _transporter;
+}
 
 // ── Email Verifikasi ────────────────────────────────────────────────────────
 
 export async function sendVerificationEmail(to: string, name: string, token: string) {
   const url = `${APP_URL}/verifikasi-email?token=${token}`;
+  const transport = await getTransporter();
 
-  const info = await transporter.sendMail({
+  const info = await transport.sendMail({
     from: FROM_ADDRESS,
     to,
     subject: "Verifikasi email kamu — AksesPintar",
@@ -67,10 +92,13 @@ export async function sendVerificationEmail(to: string, name: string, token: str
     `,
   });
 
-  // Di development, cetak URL preview Ethereal
+  // Di development, cetak URL preview Ethereal ke console server
   if (env.NODE_ENV !== "production") {
     const previewUrl = nodemailer.getTestMessageUrl(info);
-    if (previewUrl) console.log(`[mailer] Preview verifikasi: ${previewUrl}`);
+    if (previewUrl) {
+      console.log(`\n[mailer] ✉️  Preview verifikasi untuk ${to}:`);
+      console.log(`[mailer] 🔗 ${previewUrl}\n`);
+    }
   }
 }
 
@@ -78,8 +106,9 @@ export async function sendVerificationEmail(to: string, name: string, token: str
 
 export async function sendPasswordResetEmail(to: string, name: string, token: string) {
   const url = `${APP_URL}/reset-sandi?token=${token}`;
+  const transport = await getTransporter();
 
-  const info = await transporter.sendMail({
+  const info = await transport.sendMail({
     from: FROM_ADDRESS,
     to,
     subject: "Reset kata sandi — AksesPintar",
@@ -115,7 +144,10 @@ export async function sendPasswordResetEmail(to: string, name: string, token: st
 
   if (env.NODE_ENV !== "production") {
     const previewUrl = nodemailer.getTestMessageUrl(info);
-    if (previewUrl) console.log(`[mailer] Preview reset sandi: ${previewUrl}`);
+    if (previewUrl) {
+      console.log(`\n[mailer] ✉️  Preview reset sandi untuk ${to}:`);
+      console.log(`[mailer] 🔗 ${previewUrl}\n`);
+    }
   }
 }
 

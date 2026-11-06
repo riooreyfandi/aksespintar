@@ -120,6 +120,8 @@ async function createAndSendVerification(userId: string, email: string, name: st
   void sendVerificationEmail(email, name, token).catch((err: unknown) =>
     console.error("[mailer] Gagal kirim verifikasi:", err),
   );
+
+  return token;
 }
 
 // ── Register ───────────────────────────────────────────────────────────────
@@ -158,11 +160,18 @@ router.post(
         metadata: { ip: getClientIp(req), userAgent: getClientUserAgent(req) },
       });
 
-      // Kirim email verifikasi (async, tidak blokir response)
-      await createAndSendVerification(user.id, user.email, user.name);
+      // Kirim email verifikasi
+      const token = await createAndSendVerification(user.id, user.email, user.name);
+
+      // Jika SMTP nyata belum dikonfigurasi, sertakan link verifikasi langsung untuk kemudahan testing
+      const isSmtpConfigured = Boolean(process.env.SMTP_USER && process.env.SMTP_HOST);
+      const devVerificationUrl = (!isSmtpConfigured || process.env.NODE_ENV !== "production")
+        ? `${process.env.APP_URL || "http://localhost:5173"}/verifikasi-email?token=${token}`
+        : undefined;
 
       res.status(201).json({
         message: "Pendaftaran berhasil. Cek emailmu untuk verifikasi akun.",
+        devVerificationUrl,
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -240,8 +249,16 @@ router.post(
       return res.json({ message: "Jika email terdaftar dan belum diverifikasi, email verifikasi sudah dikirim." });
     }
 
-    await createAndSendVerification(user.id, user.email, user.name);
-    res.json({ message: "Email verifikasi sudah dikirim ulang. Cek kotak masukmu." });
+    const token = await createAndSendVerification(user.id, user.email, user.name);
+    const isSmtpConfigured = Boolean(process.env.SMTP_USER && process.env.SMTP_HOST);
+    const devVerificationUrl = (!isSmtpConfigured || process.env.NODE_ENV !== "production")
+      ? `${process.env.APP_URL || "http://localhost:5173"}/verifikasi-email?token=${token}`
+      : undefined;
+
+    res.json({
+      message: "Email verifikasi sudah dikirim ulang. Cek kotak masukmu.",
+      devVerificationUrl,
+    });
   }),
 );
 

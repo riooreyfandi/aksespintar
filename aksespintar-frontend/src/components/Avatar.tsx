@@ -49,6 +49,15 @@ export function Avatar({ user, size = "md", className }: AvatarProps) {
     );
   }
 
+  if (user.avatar) {
+    const src = user.avatar.startsWith("/") ? user.avatar : `/api/v1/avatars/${user.avatar}`;
+    return (
+      <span className={wrapperClass} style={style}>
+        <img src={src} alt={`Foto profil ${user.name}`} />
+      </span>
+    );
+  }
+
   return (
     <span className={wrapperClass} style={style} aria-label={`Avatar ${user.name}`}>
       <span className="avatar-initials" aria-hidden="true">
