@@ -36,6 +36,7 @@ async function getTransporter(): Promise<Transporter> {
     _transporter = nodemailer.createTransport({
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
+      secure: env.SMTP_PORT === 465,
       auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
     });
     console.log(`[mailer] Dev: pakai SMTP ${env.SMTP_HOST}:${env.SMTP_PORT}`);

@@ -15,7 +15,6 @@ export function Register() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [registered, setRegistered] = useState(false);
-  const [devVerificationUrl, setDevVerificationUrl] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -23,13 +22,10 @@ export function Register() {
     setSubmitting(true);
 
     try {
-      const res = await api<{ message: string; devVerificationUrl?: string }>("/auth/register", {
+      await api<{ message: string }>("/auth/register", {
         method: "POST",
         body: { name, email, password, website },
       });
-      if (res?.devVerificationUrl) {
-        setDevVerificationUrl(res.devVerificationUrl);
-      }
       setRegistered(true);
     } catch (err) {
       const details = err instanceof ApiError ? err.details : undefined;
@@ -55,41 +51,13 @@ export function Register() {
           <strong>{email}</strong>.
         </p>
         <p className="auth-subtitle">
-          Klik tautan di email tersebut untuk mengaktifkan akunmu, kemudian kamu bisa masuk.
-          Tautan berlaku selama <strong>24 jam</strong>.
+          Buka kotak masuk emailmu dan klik tautan verifikasi untuk mengaktifkan akun.
+          Akun wajib diverifikasi sebelum kamu bisa masuk dan membuka materi. Tautan berlaku selama <strong>24 jam</strong>.
         </p>
 
-        {devVerificationUrl ? (
-          <div
-            style={{
-              marginTop: "1.25rem",
-              marginBottom: "1.25rem",
-              padding: "1rem",
-              borderRadius: "8px",
-              backgroundColor: "rgba(37, 99, 235, 0.1)",
-              border: "1px solid rgba(37, 99, 235, 0.3)",
-              textAlign: "center",
-            }}
-          >
-            <p style={{ fontWeight: 600, color: "var(--color-primary, #2563eb)", marginBottom: "0.5rem" }}>
-              🛠️ Mode Pengujian (Testing Lokal)
-            </p>
-            <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem", color: "var(--color-text, inherit)" }}>
-              Karena SMTP email asli belum disetup, kamu bisa langsung verifikasi akun dengan klik tombol di bawah:
-            </p>
-            <a
-              href={devVerificationUrl}
-              className="btn btn-primary btn-block"
-              style={{ display: "inline-block", textDecoration: "none" }}
-            >
-              ✓ Verifikasi Akun Sekarang
-            </a>
-          </div>
-        ) : null}
-
-        <p style={{ fontSize: "0.875rem", color: "var(--color-muted, #6b7280)", marginTop: "0.75rem" }}>
-          Tidak menerima email?{" "}
-          <Link to="/kirim-ulang-verifikasi">Kirim ulang</Link>
+        <p style={{ fontSize: "0.875rem", color: "var(--color-muted, #6b7280)", marginTop: "1rem" }}>
+          Tidak menerima email verifikasi? Cek folder Spam atau{" "}
+          <Link to="/kirim-ulang-verifikasi">Kirim ulang tautan</Link>
         </p>
         <Link to="/masuk" className="btn btn-ghost btn-block" style={{ marginTop: "1rem" }}>
           Ke halaman masuk
