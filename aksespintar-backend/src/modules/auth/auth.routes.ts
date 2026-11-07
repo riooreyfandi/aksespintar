@@ -116,10 +116,18 @@ async function createAndSendVerification(userId: string, email: string, name: st
     data: { userId, tokenHash: hashToken(token), expiresAt },
   });
 
-  // Kirim email di latar belakang — jangan blokir respons register
-  void sendVerificationEmail(email, name, token).catch((err: unknown) =>
-    console.error("[mailer] Gagal kirim verifikasi:", err),
-  );
+  // Di serverless (Netlify Functions), pengiriman email WAJIB di-await
+  // agar proses tidak di-freeze oleh Lambda sebelum email sempat terkirim.
+  try {
+    await sendVerificationEmail(email, name, token);
+  } catch (err) {
+    console.error("[mailer] Gagal kirim email verifikasi:", err);
+    throw new AppError(
+      500,
+      "EMAIL_SEND_FAILED",
+      "Gagal mengirimkan email verifikasi. Pastikan konfigurasi SMTP benar atau coba lagi nanti.",
+    );
+  }
 
   return token;
 }
@@ -442,9 +450,11 @@ router.post(
       data: { userId: user.id, tokenHash: hashToken(token), expiresAt },
     });
 
-    void sendPasswordResetEmail(user.email, user.name, token).catch((err: unknown) =>
-      console.error("[mailer] Gagal kirim reset sandi:", err),
-    );
+    try {
+      await sendPasswordResetEmail(user.email, user.name, token);
+    } catch (err) {
+      console.error("[mailer] Gagal kirim reset sandi:", err);
+    }
 
     await recordAudit({
       actorId: user.id,

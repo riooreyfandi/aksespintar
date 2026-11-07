@@ -3,7 +3,11 @@ import type { Transporter } from "nodemailer";
 import { env } from "../config/env";
 
 const FROM_ADDRESS = `"AksesPintar" <${env.SMTP_FROM || "noreply@aksespintar.id"}>`;
-const APP_URL = env.APP_URL || "http://localhost:5173";
+const APP_URL =
+  process.env.APP_URL ||
+  (process.env.URL && !process.env.URL.includes("localhost") ? process.env.URL : null) ||
+  env.APP_URL ||
+  "http://localhost:5173";
 
 // ── Lazy transporter ────────────────────────────────────────────────────────
 // Transporter dibuat on-demand (bukan saat module load) agar bisa async:
@@ -27,6 +31,9 @@ async function getTransporter(): Promise<Transporter> {
       port: env.SMTP_PORT,
       secure: env.SMTP_PORT === 465,
       auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
     return _transporter;
   }
@@ -38,6 +45,9 @@ async function getTransporter(): Promise<Transporter> {
       port: env.SMTP_PORT,
       secure: env.SMTP_PORT === 465,
       auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
     console.log(`[mailer] Dev: pakai SMTP ${env.SMTP_HOST}:${env.SMTP_PORT}`);
     return _transporter;
