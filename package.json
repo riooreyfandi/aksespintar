@@ -1,0 +1,9 @@
+{
+  "name": "aksespintar",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Platform Belajar AksesPintar",
+  "scripts": {
+    "build": "cd aksespintar-backend && npm ci --include=dev --legacy-peer-deps && npx prisma migrate deploy && npx prisma generate && npm run build && cd ../aksespintar-frontend && npm ci --include=dev --legacy-peer-deps && npm run build"
+  }
+}

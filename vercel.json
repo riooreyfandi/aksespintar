@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "buildCommand": "cd aksespintar-backend && npm ci --include=dev --legacy-peer-deps && npx prisma migrate deploy && npx prisma generate && npm run build && cd ../aksespintar-frontend && npm ci --include=dev --legacy-peer-deps && npm run build",
+  "outputDirectory": "aksespintar-frontend/dist",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
